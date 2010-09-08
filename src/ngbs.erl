@@ -2,21 +2,25 @@
 %% @copyright Geoff Cant
 %% @author Geoff Cant <gcant@ngmoco.com>
 %% @version {@vsn}, {@date} {@time}
-%% @doc ngmoco:) 
+%% @doc ngmoco:) BERT-RPC server API
 %% @end
 %%%-------------------------------------------------------------------
 -module(ngbs).
 
 %% API
--export([]).
+-export([listen/0
+         ,allow_call/1
+        ]).
 
 %%====================================================================
 %% API
 %%====================================================================
-%%--------------------------------------------------------------------
-%% @spec () ->
-%% @doc 
-%% @end 
+
+listen() ->
+    ngbs_listener:start_listening().
+
+allow_call(Call) ->
+    ngbs_listener:allow_call(Call).
 
 %%====================================================================
 %% Internal functions
