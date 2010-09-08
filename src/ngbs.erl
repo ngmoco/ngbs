@@ -20,7 +20,7 @@ listen() ->
     ngbs_listener:start_listening().
 
 allow_call(Call) ->
-    ngbs_listener:allow_call(Call).
+    ngbs_acl:allow_call(Call).
 
 %%====================================================================
 %% Internal functions
