@@ -129,22 +129,29 @@ dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
     error({protocol, undesignated}, "Module name must be an atom.", [], []).
 
 
+error(Err, Msg, Fmt, Stack) ->
+    {Type, Code, Class} = format_error(Err),
+    error(Type, Code, Class, Msg, Fmt, Stack).
+
+error(Type, Code, Class, Msg, Fmt, Stack) ->
+    {error, Type, Code, Class,
+     iolist_to_binary(io_lib:format(Msg, Fmt)),
+     format_stack(Stack)}.
                             
-error({protocol, undesignated}, Msg, Fmt, Stack) ->
-    {error, {protocol, 0, <<"RequestError">>,
-             iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
-error({protocol, data}, Msg, Fmt, Stack) ->
-    {error, {protocol, 2, <<"RequestError">>,
-             iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
-error({server, undesignated}, Msg, Fmt, Stack) ->
-    {error, {server, 0, <<"ServerError">>,
-             iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
-error({server, no_module}, Msg, Fmt, Stack) ->
-    {error, {server, 1, <<"RequestError">>,
-             iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
-error({server, no_function}, Msg, Fmt, Stack) ->
-    {error, {server, 2, <<"RequestError">>,
-             iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}}.
+format_error({protocol, undesignated}) ->
+    {protocol, 0, <<"RequestError">>};
+format_error({protocol, data}) ->
+    {protocol, 2, <<"RequestError">>};
+format_error({server, undesignated}) ->
+    {server, 0, <<"ServerError">>};
+format_error({server, no_module}) ->
+    {server, 1, <<"RequestError">>};
+format_error({server, no_function}) ->
+    {server, 2, <<"RequestError">>}.
+
+format_stack(Stack) ->
+    [ iolist_to_binary(io_lib:format("~p", [Entry]))
+      || Entry <- Stack ].
 
 %%--------------------------------------------------------------------
 %% Function:
