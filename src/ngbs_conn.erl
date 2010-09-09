@@ -133,6 +133,9 @@ dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
 error({protocol, undesignated}, Msg, Fmt, Stack) ->
     {error, {protocol, 0, <<"RequestError">>,
              iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
+error({protocol, data}, Msg, Fmt, Stack) ->
+    {error, {protocol, 2, <<"RequestError">>,
+             iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
 error({server, undesignated}, Msg, Fmt, Stack) ->
     {error, {server, 0, <<"ServerError">>,
              iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}};
@@ -142,10 +145,6 @@ error({server, no_module}, Msg, Fmt, Stack) ->
 error({server, no_function}, Msg, Fmt, Stack) ->
     {error, {server, 2, <<"RequestError">>,
              iolist_to_binary(io_lib:format(Msg, Fmt)), Stack}}.
-
-
-pred_name(F) when is_atom(F) ->
-    list_to_existing_atom(atom_to_list(F) ++ "_pred").
 
 %%--------------------------------------------------------------------
 %% Function:
@@ -212,15 +211,23 @@ handle_info({tcp, Sock, TermBin}, StateName,
         Term ->
             ?MODULE:StateName(Term, State)
     catch
+        error:badarg ->
+            ?WARN("Decode error: ~p:~p~nStack: ~p",
+                  [error, badarg, erlang:get_stacktrace()]),
+            sock_send(State, error({protocol, data},
+                                   "Couldn't decode bert packet due to atom creation or invalid types.",
+                                   [],
+                                   [])),
+            {stop, decode_error, State};
         Type:Error ->
             ?WARN("Decode error: ~p:~p~nStack: ~p",
                   [Type, Error, erlang:get_stacktrace()]),
             {stop, decode_error, State}
     end;
-handle_info({tcp_closed, Sock}, StateName,
+handle_info({tcp_closed, Sock}, _StateName,
             State = #state{sock={sock, Sock}}) ->
     {stop, normal, State#state{sock=undefined}};
-handle_info({tcp_error, Sock, Reason}, StateName,
+handle_info({tcp_error, Sock, Reason}, _StateName,
             State = #state{sock={sock, Sock}}) ->
     ?INFO("Client connection closed -- ~p", [Reason]),
     gen_tcp:close(Sock),
