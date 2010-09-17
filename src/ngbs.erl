@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%% @copyright Geoff Cant
+%% @copyright 2010 ngmoco:)
 %% @author Geoff Cant <gcant@ngmoco.com>
 %% @version {@vsn}, {@date} {@time}
 %% @doc ngmoco:) BERT-RPC server API

@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
-%% @copyright Geoff Cant
-%% @author Geoff Cant <nem@erlang.geek.nz>
+%% @copyright 2010 ngmoco:)
+%% @author Geoff Cant <gcant@ngmoco.com>
 %% @version {@vsn}, {@date} {@time}
 %% @doc Erlang BERT client
 %% @end
