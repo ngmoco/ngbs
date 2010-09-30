@@ -24,6 +24,9 @@
 -export([init/1, handle_event/3,
          handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
+%% Tracing export.
+-export([error/6]).
+
 -record(state, {sock, cmdinfo=[]}).
 
 %%====================================================================
@@ -111,14 +114,21 @@ dispatch({M,F,A}, _Info) when is_atom(M), is_atom(F), is_list(A) ->
                 Result -> {reply, Result}
             catch
                 error:undef ->
+                    Stack = erlang:get_stacktrace(),
+                    ?WARN("No such function '~p/~p' in module '~p'.~nStack: ~p",
+                          [F, M, length(A), Stack]),
                     error({server, no_function},
                           "No such function '~p/~p' in module '~p'.", [F, M, length(A)],
-                          erlang:get_stacktrace());
+                          Stack);
                 Type:Error ->
+                    Stack = erlang:get_stacktrace(),
+                    ?ERR("~p:~p calling ~p:~p/~p.~nStack: ~p",
+                         [Type, Error, M, F, length(A),
+                          Stack]),
                     error({server, undesignated},
                           "~p:~p calling ~p:~p/~p.",
                           [Type, Error, M, F, length(A)],
-                          erlang:get_stacktrace())
+                          Stack)
             end
     end;
 dispatch({M,F,A}, _Info) when is_atom(M), is_atom(F), not is_list(A) ->
@@ -131,7 +141,10 @@ dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
 
 error(Err, Msg, Fmt, Stack) ->
     {Type, Code, Class} = format_error(Err),
-    error(Type, Code, Class, Msg, Fmt, Stack).
+    %% Call ?MODULE:error instead of error in order to allow us to
+    %% easily trace connection errors. XXX Could be a hot upgrade bug
+    %% path though.
+    ?MODULE:error(Type, Code, Class, Msg, Fmt, Stack).
 
 error(Type, Code, Class, Msg, Fmt, Stack) ->
     {error, Type, Code, Class,
