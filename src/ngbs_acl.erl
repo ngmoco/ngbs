@@ -175,14 +175,19 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 
 -spec ensure_loaded(callspec()) -> 'loaded' | 'not_loaded'.
-ensure_loaded({function, {M,F,A}}) ->
-    ensure_loaded(M),
-    case erlang:function_exported(M, F, A) of
-        true -> loaded;
-        false ->
-            ?WARN("Module ~p loaded, but function ~p/~p not exported.", [M, F, A]),
-            not_loaded
+ensure_loaded({function, {M,F,A}}) when is_atom(M), is_atom(F), is_integer(A) ->
+    case ensure_loaded({module, M}) of
+        not_loaded ->
+            not_loaded;
+        loaded ->
+            case erlang:function_exported(M, F, A) of
+                false ->
+                    ?WARN("Module ~p loaded, but function ~p/~p not exported.", [M, F, A]),
+                    not_loaded;
+                true -> loaded
+            end
     end;
+
 ensure_loaded({module, M}) when is_atom(M) ->
     case code:ensure_loaded(M) of
         {module, M} ->
