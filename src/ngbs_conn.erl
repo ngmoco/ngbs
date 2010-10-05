@@ -115,10 +115,10 @@ dispatch({M,F,A}, _Info) when is_atom(M), is_atom(F), is_list(A) ->
             catch
                 error:undef ->
                     Stack = erlang:get_stacktrace(),
-                    ?WARN("No such function '~p/~p' in module '~p'.~nStack: ~p",
-                          [F, M, length(A), Stack]),
+                    ?WARN("No such function '~p:~p/~p'.~nStack: ~p",
+                          [M, F, length(A), Stack]),
                     error({server, no_function},
-                          "No such function '~p/~p' in module '~p'.", [F, M, length(A)],
+                          "No such function '~p:~p/~p'.", [M, F, length(A)],
                           Stack);
                 Type:Error ->
                     Stack = erlang:get_stacktrace(),
