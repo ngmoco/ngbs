@@ -147,9 +147,9 @@ error(Err, Msg, Fmt, Stack) ->
     ?MODULE:error(Type, Code, Class, Msg, Fmt, Stack).
 
 error(Type, Code, Class, Msg, Fmt, Stack) ->
-    {error, Type, Code, Class,
-     iolist_to_binary(io_lib:format(Msg, Fmt)),
-     format_stack(Stack)}.
+    {error, {Type, Code, Class,
+             iolist_to_binary(io_lib:format(Msg, Fmt)),
+             format_stack(Stack)}}.
                             
 format_error({protocol, undesignated}) ->
     {protocol, 0, <<"RequestError">>};
