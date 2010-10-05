@@ -122,12 +122,12 @@ dispatch({M,F,A}, _Info) when is_atom(M), is_atom(F), is_list(A) ->
                           Stack);
                 Type:Error ->
                     Stack = erlang:get_stacktrace(),
-                    ?ERR("~p:~p calling ~p:~p/~p.~nStack: ~p",
-                         [Type, Error, M, F, length(A),
+                    ?ERR("~p:~p calling ~p:~p(~s).~nStack: ~p",
+                         [Type, Error, M, F, args_to_list(A),
                           Stack]),
                     error({server, undesignated},
-                          "~p:~p calling ~p:~p/~p.",
-                          [Type, Error, M, F, length(A)],
+                          "~p:~p calling ~p:~p(~s).",
+                          [Type, Error, M, F, args_to_list(A)],
                           Stack)
             end
     end;
