@@ -88,8 +88,14 @@ listen_opts() ->
      {backlog, 128}].
 
 async_accept(LSock) ->
-    {ok, _Ref} = prim_inet:async_accept(LSock, -1),
-    ok.
+    case prim_inet:async_accept(LSock, -1) of
+        {ok, _Ref} ->
+            ok;
+        {error, emfile} ->
+            ?ERR("Couldn't accept another connection - out of file descriptors!", []),
+            erlang:send_after(100, self(), try_async_accept),
+            ok
+    end.
 
 start_listening() ->
     gen_server:call(?MODULE, start_listening).
@@ -180,6 +186,10 @@ handle_info({inet_async, LSock, _Ref, Error}, State = #state{lsock=LSock}) ->
         {error, E} -> {stop, {listen_failed, E}, S1};
         {ok, S2 = #state{}} -> {noreply, S2}
     end;
+
+handle_info(try_async_accept, State = #state{lsock=LSock}) ->
+    async_accept(LSock),
+    {noreply, State};
 
 handle_info({inet_async, _OldLSock, _Ref, {error, closed}}, State) ->
     %% Silently eat the close message from our old listen sock
