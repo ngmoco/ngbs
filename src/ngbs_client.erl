@@ -15,8 +15,10 @@
 %% API
 -export([start_link/2
          ,start/2
+         ,start_local/0
          ,stop/1
          ,call/4
+         ,cast/4
          ,wait_response/2
         ]).
 
@@ -48,8 +50,19 @@ start_link(Host, Port) ->
 start(Host, Port) ->
     gen_fsm:start(?MODULE, [#state{host=Host, port=Port}], []).
 
+start_local() ->
+    {port, Port} = ngbs_listener:listening(),
+    start("localhost", Port).
+
 stop(Pid) ->
     gen_fsm:sync_send_all_state_event(Pid, stop).
+
+call(Connection, M, F, A) ->
+    gen_fsm:sync_send_event(Connection, {call, M, F, A}).
+
+cast(Connection, M, F, A) ->
+    gen_fsm:sync_send_event(Connection, {cast, M, F, A}).
+
 
 %%====================================================================
 %% gen_fsm callbacks
@@ -127,9 +140,6 @@ reply(Response, State = #state{req={From, _Req}}) ->
 %% name as the current state name StateName is called to handle the event.
 %%--------------------------------------------------------------------
 
-call(Connection, M, F, A) ->
-    gen_fsm:sync_send_event(Connection, {call, M, F, A}).
-
 idle(Req, From, State) ->
     case connect(State) of
         {ok, Sock} ->
@@ -138,13 +148,15 @@ idle(Req, From, State) ->
             {reply, {tcp_error, E}, idle, State}
     end.
 
-connected(Req = {call, _M, _F, _A}, From, State) ->
+connected(Req = {Type, _M, _F, _A}, From, State)
+  when Type =:= call; Type =:= cast ->
     case send(Req, State) of
         ok ->
             {next_state, wait_response, State#state{req={From, Req}}};
         {error, closed} ->
             idle(Req, From, State)
     end.
+
 
 send(Term, State) when not is_binary(Term) ->
     send(ngbs_bert:encode(Term), State);
