@@ -1,35 +1,27 @@
 %%%-------------------------------------------------------------------
-%% @copyright 2010 ngmoco:)
+%% @copyright 2010 ngmoco :)
 %% @author Geoff Cant <gcant@ngmoco.com>
-%% @version {@vsn}, {@date} {@time}
-%% @doc Access control module for allowed functions
+%% @version {@date} {@time}
+%% @doc Async ngbs dispatch limiter
 %% @end
 %%%-------------------------------------------------------------------
--module(ngbs_acl).
+-module(ngbs_cast_dispatcher).
 
 -behaviour(gen_server).
 
--include_lib("ng_log.hrl").
+-include("ng_log.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
 %% API
 -export([start_link/0
-         ,allowed_calls/0
-         ,allow_call/1
-         ,deny_call/1
-         ,missing_calls/0
-         ,is_allowed/3
+         ,dispatch/2
         ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--record(state, {tab}).
--define(ACL_TAB, ?MODULE).
-
--type callspec() :: {module, Mod::atom()} |
-                    {function, {Mod::atom(), Function::atom(), Arity::non_neg_integer()}}.
+-record(state, {workers = []}).
 
 %%====================================================================
 %% API
@@ -40,51 +32,14 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local,?MODULE}, ?MODULE, [], []).
-
-allowed_calls() ->
-    [ CS
-      || CS <- ngbs_app:config(allowed_calls, []),
-         allowed_call(CS) =:= allowed ].
-
-allow_call(CS) ->
-    gen_server:call(?MODULE, {allow_call, CS}).
-
-deny_call(CS) ->
-    gen_server:call(?MODULE, {deny_call, CS}).
-
-allowed_call({module, M}) when is_atom(M) -> allowed;
-allowed_call({function, {M, F, A}}) when is_atom(M), is_atom(F), is_integer(A) -> allowed;
-allowed_call(_) -> not_allowed.
-
-missing_calls() ->
-    ets:foldl(fun ({_,CS}, Acc) ->
-                      case ensure_loaded(CS) of
-                          loaded -> Acc;
-                          not_loaded -> [CS | Acc]
-                      end
-              end,
-              [],
-             ?ACL_TAB).
-
-%% @doc Check whether an MFA is allowed. (Ets lookup for a blanket
-%% module-allow, then for a specific MFA allow, otherwise not_allowed.
--spec is_allowed(atom(), atom(), non_neg_integer()) -> 'allowed' | 'not_allowed'.
-is_allowed(Module, Function, Arity)
-  when is_atom(Module), is_atom(Function), is_integer(Arity) ->
-    case ets:lookup(?ACL_TAB, ets_key({module, Module})) of
-        [_] -> allowed;
-        [] ->
-            case ets:lookup(?ACL_TAB, ets_key({function, {Module, Function, Arity}})) of
-                [_] -> allowed;
-                [] ->
-                    not_allowed
-            end
-    end.
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
+
+dispatch(Cmd, Info) ->
+    gen_server:cast(?MODULE, {dispatch, Cmd, Info}).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -96,19 +51,7 @@ is_allowed(Module, Function, Arity)
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    Tid = ets:new(?ACL_TAB, [{keypos, 1},
-                             named_table,
-                             protected,
-                             set]),
-    State = #state{tab=Tid},
-    fill_table(),
-    case missing_calls() of
-        [] -> ok;
-        _ -> ?WARN("Couldn't load some modules, "
-                   "check the 'ngbs' 'allowed_calls' configuation option.",[]),
-             ok
-    end,
-    {ok, State}.
+    {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -122,19 +65,6 @@ init([]) ->
 %% @doc Call message handler callbacks
 %% @end
 %%--------------------------------------------------------------------
-handle_call({deny_call, CS}, _From, State) ->
-    ets:delete(?ACL_TAB, ets_key(CS)),
-    {reply, ok, State};
-
-handle_call({allow_call, CS}, _From, State) ->
-    case allowed_call(CS) of
-        allowed ->
-            i_allow_call(CS),
-            {reply, ok, State};
-        not_allowed ->
-            {reply, {error, not_allowed}, State}
-    end;
-        
 handle_call(Call, _From, State) ->
     ?WARN("Unexpected call ~p.", [Call]),
     {noreply, State}.
@@ -148,6 +78,9 @@ handle_call(Call, _From, State) ->
 %% @doc Cast message handler callbacks
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({dispatch, Cmd, Info}, State) ->
+    ngbs_dispatch:call(Cmd, Info),
+    {noreply, State};
 handle_cast(Msg, State) ->
     ?WARN("Unexpected cast ~p", [Msg]),
     {noreply, State}.
@@ -189,37 +122,3 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-
--spec ensure_loaded(callspec()) -> 'loaded' | 'not_loaded'.
-ensure_loaded({function, {M,F,A}}) when is_atom(M), is_atom(F), is_integer(A) ->
-    case ensure_loaded({module, M}) of
-        not_loaded ->
-            not_loaded;
-        loaded ->
-            case erlang:function_exported(M, F, A) of
-                false ->
-                    ?WARN("Module ~p loaded, but function ~p/~p not exported.", [M, F, A]),
-                    not_loaded;
-                true -> loaded
-            end
-    end;
-
-ensure_loaded({module, M}) when is_atom(M) ->
-    case code:ensure_loaded(M) of
-        {module, M} ->
-            loaded;
-        {error, Reason} ->
-            ?WARN("Module ~p not loaded: ~p", [M, Reason]),
-            not_loaded
-    end.
-
-ets_key({module, M}) -> M;
-ets_key({function, MFA}) -> MFA.
-
-i_allow_call(CS) ->
-    ets:insert(?ACL_TAB, {ets_key(CS), CS}).
-
-fill_table() ->
-    fill_table(allowed_calls()).
-fill_table(Calls) ->
-    lists:foreach(fun i_allow_call/1, Calls).

@@ -2,7 +2,7 @@
 %% @copyright 2010 ngmoco:)
 %% @author Geoff Cant <gcant@ngmoco.com>
 %% @version {@vsn}, {@date} {@time}
-%% @doc Handles a single ernie connection
+%% @doc Handles a single BertRPC connection
 %% @end
 %%%-------------------------------------------------------------------
 -module(ngbs_conn).
@@ -23,9 +23,6 @@
 %% gen_fsm callbacks
 -export([init/1, handle_event/3,
          handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
-
-%% Tracing export.
--export([error/6]).
 
 -record(state, {sock, cmdinfo=[]}).
 
@@ -70,6 +67,20 @@ wait_sock({accept_sock, Sock}, State = #state{sock=undefined}) ->
     NewState = State#state{sock={sock, Sock}},
     continue(NewState).
 
+connected({call, '__admin__', _F, _Args}, State) ->
+    sock_send(State, ngbs_proto:reply(<<"Admin function not supported">>)),
+    continue(State);
+connected({info, Command, Args}, State = #state{cmdinfo=I}) ->
+    continue(State#state{cmdinfo=[{Command, Args} | I]});
+connected({cast, M, F, A}, State = #state{cmdinfo=I}) ->
+    Reply = ngbs_dispatch:cast({M,F,A}, I),
+    sock_send(State, Reply),
+    continue(State);
+connected({call, M, F, A}, State = #state{cmdinfo=I}) ->
+    Reply = ngbs_dispatch:call({M,F,A}, I),
+    sock_send(State, Reply),
+    continue(State).
+
 active_once(#state{sock={sock,Socket}}) ->
     active_once(Socket);
 active_once(Socket) ->
@@ -89,82 +100,6 @@ close(State = #state{sock={sock,Socket}}) ->
 continue(State) ->
     active_once(State),
     {next_state, connected, State}.
-
-
-connected({call, '__admin__', _F, _Args}, State) ->
-    sock_send(State, {reply, <<"Admin function not supported">>}),
-    continue(State);
-connected({info, Command, Args}, State = #state{cmdinfo=I}) -> 
-    continue(State#state{cmdinfo=[{Command, Args} | I]});
-connected({cast, M, F, A}, State = #state{cmdinfo=I}) ->
-    sock_send(State, {noreply}),
-    S2 = close(State),
-    dispatch({M,F,A}, I),
-    {stop, normal, S2};
-connected({call, M, F, A}, State = #state{cmdinfo=I}) ->
-    Reply = dispatch({M,F,A}, I),
-    sock_send(State, Reply),
-    {stop, normal, close(State#state{cmdinfo=[]})}.
-
-dispatch({M,F,A}, _Info) when is_atom(M), is_atom(F), is_list(A) ->
-    case code:is_loaded(M) of
-        false -> error({server, no_module}, "No such module '~p'", [M], []);
-        {file, _} ->
-            try apply(M,F,A) of
-                Result -> {reply, Result}
-            catch
-                error:undef ->
-                    Stack = erlang:get_stacktrace(),
-                    ?WARN("No such function '~p:~p/~p'.~nStack: ~p",
-                          [M, F, length(A), Stack]),
-                    error({server, no_function},
-                          "No such function '~p:~p/~p'.", [M, F, length(A)],
-                          Stack);
-                Type:Error ->
-                    Stack = erlang:get_stacktrace(),
-                    ?ERR("~p:~p calling ~p:~p(~s).~nStack: ~p",
-                         [Type, Error, M, F, args_to_list(A),
-                          Stack]),
-                    error({server, undesignated},
-                          "~p:~p calling ~p:~p(~s).",
-                          [Type, Error, M, F, args_to_list(A)],
-                          Stack)
-            end
-    end;
-dispatch({M,F,A}, _Info) when is_atom(M), is_atom(F), not is_list(A) ->
-    error({protocol, undesignated}, "Function arguments must be a list.", [], []);
-dispatch({M,F,_A}, _Info) when is_atom(M), not is_atom(F) ->
-    error({protocol, undesignated}, "Function name must be an atom.", [], []);
-dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
-    error({protocol, undesignated}, "Module name must be an atom.", [], []).
-
-
-error(Err, Msg, Fmt, Stack) ->
-    {Type, Code, Class} = format_error(Err),
-    %% Call ?MODULE:error instead of error in order to allow us to
-    %% easily trace connection errors. XXX Could be a hot upgrade bug
-    %% path though.
-    ?MODULE:error(Type, Code, Class, Msg, Fmt, Stack).
-
-error(Type, Code, Class, Msg, Fmt, Stack) ->
-    {error, {Type, Code, Class,
-             iolist_to_binary(io_lib:format(Msg, Fmt)),
-             format_stack(Stack)}}.
-                            
-format_error({protocol, undesignated}) ->
-    {protocol, 0, <<"RequestError">>};
-format_error({protocol, data}) ->
-    {protocol, 2, <<"RequestError">>};
-format_error({server, undesignated}) ->
-    {server, 0, <<"ServerError">>};
-format_error({server, no_module}) ->
-    {server, 1, <<"RequestError">>};
-format_error({server, no_function}) ->
-    {server, 2, <<"RequestError">>}.
-
-format_stack(Stack) ->
-    [ iolist_to_binary(io_lib:format("~p", [Entry]))
-      || Entry <- Stack ].
 
 %%--------------------------------------------------------------------
 %% Function:
@@ -234,10 +169,11 @@ handle_info({tcp, Sock, TermBin}, StateName,
         error:badarg ->
             ?WARN("Decode error: ~p:~p~nStack: ~p",
                   [error, badarg, erlang:get_stacktrace()]),
-            sock_send(State, error({protocol, data},
-                                   "Couldn't decode bert packet due to atom creation or invalid types.",
-                                   [],
-                                   [])),
+            sock_send(State,
+                      ngbs_proto:error({protocol, data},
+                                       "Couldn't decode bert packet due to atom creation or invalid types.",
+                                       [],
+                                       [])),
             {stop, decode_error, State};
         Type:Error ->
             ?WARN("Decode error: ~p:~p~nStack: ~p",
@@ -250,8 +186,7 @@ handle_info({tcp_closed, Sock}, _StateName,
 handle_info({tcp_error, Sock, Reason}, _StateName,
             State = #state{sock={sock, Sock}}) ->
     ?INFO("Client connection closed -- ~p", [Reason]),
-    gen_tcp:close(Sock),
-    {stop, normal, State#state{sock=undefined}};
+    {stop, normal, close(State)};
 
 handle_info(Info, StateName, State) ->
     ?INFO("Unexpected info msg ~p in state ~p.", [Info, StateName]),
@@ -278,12 +213,3 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-
-args_to_list(Args) ->
-    string:join([ if is_pid(A) ->
-                          "pid("++string:join(string:tokens(pid_to_list(A) -- "<>", "."), ",") ++ ")";
-                     true ->
-                          io_lib:format("~p", [A])
-                  end
-                  || A <- Args ],
-                ", ").

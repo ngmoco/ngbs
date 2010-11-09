@@ -17,6 +17,7 @@ start() ->
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+    load_all_modules(),
     ngbs_sup:start_link().
 
 stop(_State) ->
@@ -45,3 +46,7 @@ start_ok(App, {error, {not_started, Dep}}) ->
     start(App);
 start_ok(App, {error, Reason}) -> 
     erlang:error({app_start_failed, App, Reason}).
+
+load_all_modules() ->
+    {ok, Mods} = application:get_key(?APP, modules),
+    [ code:ensure_loaded(Mod) || Mod <- Mods ].

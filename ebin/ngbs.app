@@ -16,6 +16,9 @@
              ,ngbs_bert
              ,ngbs_acl
              ,ngbs_listener
+             ,ngbs_dispatch
+             ,ngbs_cast_dispatcher
+             ,ngbs_proto
              ,ngbs_conn
              ,ngbs_conn_sup
              ,ngbs_client
