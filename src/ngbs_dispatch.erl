@@ -33,13 +33,14 @@ cast(Cmd, Info) ->
 dispatch({M,F,A}, []) when is_atom(M), is_atom(F), is_list(A) ->
     Arity = length(A),
     case ngbs_acl:is_allowed(M, F, Arity) of
-        allowed -> eval(M, F, A);
         not_allowed ->
             ?WARN("Call to disallowed function: ~p:~p/~p.",
                   [M,F,Arity]),
             ngbs_proto:error({server, no_function},
                              "No such function '~p:~p/~p'.", [M, F, Arity],
-                             [])
+                             []);
+        allowed ->
+            maybe_time_dispatch(M,F,A)
     end;
 dispatch(Cmd, Info) when is_list(Info) ->
     ?WARN("Unsupported info directives: ~p~nFor command: ~p",
@@ -55,10 +56,27 @@ dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
                      "Module name must be an atom.", [], []).
 
 
+maybe_time_dispatch(M,F,A) ->
+    case ngbs_app:config(slow_query_threshold, undefined) of
+        undefined ->
+            eval(M,F,A);
+        Threshold ->
+            Start = erlang:now(),
+            Result = eval(M,F,A),
+            End = erlang:now(),
+            case timer:now_diff(End, Start) of
+                Elapsed when Elapsed > Threshold ->
+                    ?INFO("Slow function: ~p:~p/~p (~pus).",
+                          [M, F, length(A), Elapsed]);
+                _ -> ok
+            end,
+            Result
+    end.
 
-eval(M,F,A) when is_atom(M), is_atom(F), is_list(A) ->
+eval(M,F,A) ->
     try apply(M,F,A) of
-        Result -> {reply, Result}
+        Result ->
+            ngbs_proto:reply(Result)
     catch
         error:undef ->
             Stack = erlang:get_stacktrace(),
