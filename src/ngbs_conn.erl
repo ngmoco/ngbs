@@ -67,9 +67,6 @@ wait_sock({accept_sock, Sock}, State = #state{sock=undefined}) ->
     NewState = State#state{sock={sock, Sock}},
     continue(NewState).
 
-connected({call, '__admin__', _F, _Args}, State) ->
-    sock_send(State, ngbs_proto:reply(<<"Admin function not supported">>)),
-    continue(State);
 connected({info, Command, Args}, State = #state{cmdinfo=I}) ->
     continue(State#state{cmdinfo=[{Command, Args} | I]});
 connected({cast, M, F, A}, State = #state{cmdinfo=I}) ->
