@@ -9,7 +9,7 @@
   {env, [{port, 8000}
          ,{allowed_calls, []}
          ,{listen_on_startup, false}
-         ,{slow_query_threshold, undefined} % Log threshold for rpc execution time (Microseconds)
+         ,{time_dispatch, undefined} % Dispatch profiling (undefined = disabled)
         ]},
   {modules, [ngbs_app
              ,ngbs_sup

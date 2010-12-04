@@ -14,6 +14,9 @@
          ,cast/2
         ]).
 
+%% Tracing export.
+-export([report_call_time/6]).
+
 %%====================================================================
 %% API
 %%====================================================================
@@ -57,22 +60,36 @@ dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
 
 
 maybe_time_dispatch(M,F,A) ->
-    case ngbs_app:config(slow_query_threshold, undefined) of
+    case ngbs_app:config(time_dispatch, undefined) of
         undefined ->
             eval(M,F,A);
-        Threshold ->
-            Start = erlang:now(),
-            Result = eval(M,F,A),
-            End = erlang:now(),
-            case timer:now_diff(End, Start) of
-                Elapsed when Elapsed > Threshold ->
-                    ?INFO("Slow function: ~p:~p/~p (~pus).",
-                          [M, F, length(A), Elapsed]);
-                _ -> ok
-            end,
+        {report,Pid} when is_pid(Pid) ->
+            {Result,Timing} = time_eval(M,F,A),
+            Pid ! {?MODULE, time_eval, {{M,F,A},Timing}},
+            Result;
+        {apply, {Rm,Rf}} ->
+            {Result,Timing} = time_eval(M,F,A),
+            Rm:Rf({M,F,A}, Timing),
+            Result;
+        {threshold, Threshold} when is_integer(Threshold) ->
+            {Result,{Start, Elapsed}} = time_eval(M,F,A),
+            report_call_time(M,F,A,Start,Elapsed,Threshold),
             Result
     end.
 
+time_eval(M,F,A) ->
+    Start = erlang:now(),
+    Result = eval(M,F,A),
+    End = erlang:now(),
+    Elapsed = timer:now_diff(End, Start),
+    {Result,{Start,Elapsed}}.
+
+report_call_time(M,F,A,_Start,Elapsed,Threshold) when Elapsed >= Threshold ->
+    ?INFO("Slow (~pus) function: ~p:~p/~p.",
+          [Elapsed, M, F, length(A)]);
+report_call_time(_,_,_,_,_,_) -> ok.
+
+%% Actually execute the call.
 eval(M,F,A) ->
     try apply(M,F,A) of
         Result ->
