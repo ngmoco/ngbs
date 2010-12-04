@@ -3,6 +3,14 @@
 %% @author Geoff Cant <gcant@ngmoco.com>
 %% @version {@date} {@time}
 %% @doc NGBS function dispatch
+%%
+%% App config option time_dispatch:
+%%  * {threshold, US} - log message for calls longer than US
+%%    microseconds.
+%%  * {apply, {M,F}} - execute M:F(CallMFA, {StartTS, ElapsedUS}) after
+%%     every call
+%%  * {report, Pid} - send {ngbs_dispatch, time_eval, {CallMFA, {StartTS,
+%%    ElapsedUS}}} to Pid after every call
 %% @end
 %%%-------------------------------------------------------------------
 -module(ngbs_dispatch).
