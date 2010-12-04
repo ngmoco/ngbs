@@ -71,12 +71,16 @@ connected({info, Command, Args}, State = #state{cmdinfo=I}) ->
     continue(State#state{cmdinfo=[{Command, Args} | I]});
 connected({cast, M, F, A}, State = #state{cmdinfo=I}) ->
     Reply = ngbs_dispatch:cast({M,F,A}, I),
-    sock_send(State, Reply),
-    continue(State);
+    NewState = State#state{cmdinfo=[]},
+    sock_send(NewState, Reply),
+    continue(NewState);
 connected({call, M, F, A}, State = #state{cmdinfo=I}) ->
     Reply = ngbs_dispatch:call({M,F,A}, I),
-    sock_send(State, Reply),
-    continue(State).
+    NewState = State#state{cmdinfo=[]},
+    sock_send(NewState, Reply),
+    continue(NewState).
+
+%%--------------------------------------------------------------------
 
 active_once(#state{sock={sock,Socket}}) ->
     active_once(Socket);
