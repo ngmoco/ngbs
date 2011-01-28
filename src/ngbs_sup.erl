@@ -47,6 +47,10 @@ init([]) ->
            {ngbs_acl, start_link, []},
            permanent, 1000, worker,
            [ngbs_acl]},
+    Dis = {cast_dispatcher,
+           {ngbs_cast_dispatcher, start_link, []},
+           permanent, 1000, worker,
+           [ngbs_cast_dispatcher]},
     CS = {conn_sup,
           {ngbs_conn_sup,start_link,[]},
           permanent,2000,supervisor,
@@ -55,7 +59,7 @@ init([]) ->
           {ngbs_listener,start_link,[]},
           permanent,2000,worker,
           [ngbs_conn_sup]},
-    {ok,{{one_for_all,0,1}, [ACL, CS, LS]}}.
+    {ok,{{one_for_all,0,1}, [ACL, Dis, CS, LS]}}.
 
 %%====================================================================
 %% Internal functions
