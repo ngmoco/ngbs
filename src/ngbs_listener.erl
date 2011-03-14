@@ -16,6 +16,7 @@
 -export([start_link/0
          ,start_link/1
          ,start_listening/0
+         ,start_listening/1
          ,stop_listening/0
          ,listening/0
         ]).
@@ -39,6 +40,19 @@ start_link() ->
 
 start_link(Port) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [#state{port=Port}], []).
+
+start_listening() ->
+    start_listening(current).
+
+start_listening(Port) ->
+    gen_server:call(?MODULE, {start_listening, Port}).
+
+stop_listening() ->
+    gen_server:call(?MODULE, stop_listening).
+
+listening() ->
+    gen_server:call(?MODULE, listening).
+
 
 %%====================================================================
 %% gen_server callbacks
@@ -79,7 +93,6 @@ listen(State = #state{lsock=undefined, port=Port}) ->
 listen(_State) ->
     {error, already_listening}.
 
-
 listen_opts() ->
     [binary,
      {packet, 4},
@@ -96,14 +109,6 @@ async_accept(LSock) ->
             erlang:send_after(100, self(), try_async_accept),
             ok
     end.
-
-start_listening() ->
-    gen_server:call(?MODULE, start_listening).
-stop_listening() ->
-    gen_server:call(?MODULE, stop_listening).
-
-listening() ->
-    gen_server:call(?MODULE, listening).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -125,8 +130,12 @@ handle_call(listening, _From, State = #state{lsock=LSock, port=Port}) ->
             {reply, {port, Port}, State}
     end;
 
-handle_call(start_listening, _From, State = #state{}) ->
-    case listen(State) of
+handle_call({start_listening, Port}, _From, State = #state{}) ->
+    LPort = case Port of
+                current -> State#state.port;
+                _ -> Port
+            end,
+    case listen(State#state{port=LPort}) of
         {ok, NewState} ->
             {reply, ok, NewState};
         {error, _} = E ->
