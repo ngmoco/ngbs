@@ -9,6 +9,7 @@
 
 %% API
 -export([listen/0
+         ,listen/1
          ,allow_call/1
         ]).
 
@@ -18,6 +19,9 @@
 
 listen() ->
     ngbs_listener:start_listening().
+
+listen(Port) ->
+    ngbs_listener:start_listening(Port).
 
 allow_call(Call) ->
     ngbs_acl:allow_call(Call).
