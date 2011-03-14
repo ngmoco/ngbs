@@ -1,7 +1,7 @@
 NGBS - The ngmoco:) BertRPC Server
 ==================================
 
-ngbs is a BertRPC_ server..
+ngbs is a BertRPC_ server.
 
 Features
 --------
@@ -65,6 +65,12 @@ Each BertRPC_ connection is run as a separate Erlang process. ``call``
 requests are processed synchronously in these processes. Asynchronous
 ``cast`` requests are sent to a central cast dispatch process for
 background evaluation.
+
+If the Erlang VM runs out of file descriptors (listen/accept returns
+``emfile``), the listener process will protect itself by catching the
+error and delay for 100ms before trying to accept again. The server
+will be unavailable to new connections during this time, but all
+established connections are unaffected.
 
 Restrictions
 ------------
