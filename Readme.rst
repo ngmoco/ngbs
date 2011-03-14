@@ -6,13 +6,13 @@ ngbs is a BertRPC_ server..
 Features
 --------
 
-* OTP application and configuration
-* Builds with rebar
-* Module and function level ACLs
-* ``emfile`` overload protection
-* Runtime configurable Command dispatch instrumentation
-* Persistent and transient BertRPC_ connections
-* Safe bert decoding (binary_to_term(BertBin, [safe]))
+- OTP application and configuration
+- Builds with rebar
+- Module and function level ACLs
+- ``emfile`` overload protection
+- Runtime configurable Command dispatch instrumentation
+- Persistent and transient BertRPC_ connections
+- Safe bert decoding (binary_to_term(BertBin, [safe]))
 
 
 Installation
@@ -22,8 +22,8 @@ Building ngbs
 _____________
 
 Prerequisites:
-* Erlang R14B+
-* rebar
+- Erlang R14B+
+- rebar
 
 #. rebar compile
 #. enjoy a well earned margarita
@@ -69,9 +69,9 @@ background evaluation.
 Restrictions
 ------------
 
-* ngbs at present can only listen on one port at a time.
-* The dispatch process that runs 'cast' calls 
-* ``info`` packets are ignored.
-* Doesn't support BertRPC_ binary streaming
+- ngbs at present can only listen on one port at a time.
+- The dispatch process that runs 'cast' calls 
+- ``info`` packets are ignored.
+- Doesn't support BertRPC_ binary streaming
 
 .. _BertRPC: http://bert-rpc.org/
