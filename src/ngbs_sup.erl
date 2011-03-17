@@ -58,7 +58,7 @@ init([]) ->
     LS = {listener,
           {ngbs_listener,start_link,[]},
           permanent,2000,worker,
-          [ngbs_conn_sup]},
+          [ngbs_listener]},
     {ok,{{one_for_all,0,1}, [ACL, Dis, CS, LS]}}.
 
 %%====================================================================
