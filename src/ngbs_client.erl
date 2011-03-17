@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %% @copyright 2010 ngmoco:)
 %% @author Geoff Cant <gcant@ngmoco.com>
-%% @version {@vsn}, {@date} {@time}
+%% @version {@date} {@time}
 %% @doc Erlang BERT client
 %% @end
 %%%-------------------------------------------------------------------
