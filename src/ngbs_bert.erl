@@ -30,7 +30,8 @@ encode_term(Term) ->
         [] -> {bert, nil};
         true -> {bert, true};
         false -> {bert, false};
-        Dict when is_record(Term, dict, 8) ->
+        Dict when is_record(Term, dict, 9);
+                  is_record(Term, dict, 8) ->
             {bert, dict, dict:to_list(Dict)};
         List when is_list(Term) ->
             [ encode_term(Element) || Element <- List ];
