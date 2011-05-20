@@ -69,8 +69,6 @@ dispatch({M,_F,_A}, _Info) when not is_atom(M) ->
 
 maybe_time_dispatch(M,F,A) ->
     case ngbs_app:config(time_dispatch, undefined) of
-        undefined ->
-            eval(M,F,A);
         {report,Pid} when is_pid(Pid) ->
             {Result,Timing} = time_eval(M,F,A),
             Pid ! {?MODULE, time_eval, {{M,F,A},Timing}},
@@ -82,7 +80,9 @@ maybe_time_dispatch(M,F,A) ->
         {threshold, Threshold} when is_integer(Threshold) ->
             {Result,{Start, Elapsed}} = time_eval(M,F,A),
             report_call_time(M,F,A,Start,Elapsed,Threshold),
-            Result
+            Result;
+        _ ->
+            eval(M,F,A)
     end.
 
 time_eval(M,F,A) ->
