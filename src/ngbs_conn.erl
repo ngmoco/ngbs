@@ -39,25 +39,25 @@ start_link() ->
 %% Function: init(Args) -> {ok, StateName, State} |
 %%                         {ok, StateName, State, Timeout} |
 %%                         ignore                              |
-%%                         {stop, StopReason}                   
+%%                         {stop, StopReason}
 %% Description:Whenever a gen_fsm is started using gen_fsm:start/[3,4] or
-%% gen_fsm:start_link/3,4, this function is called by the new process to 
-%% initialize. 
+%% gen_fsm:start_link/3,4, this function is called by the new process to
+%% initialize.
 %%--------------------------------------------------------------------
 init([S = #state{}]) ->
     {ok, wait_sock, S}.
 
 %%--------------------------------------------------------------------
-%% Function: 
+%% Function:
 %% state_name(Event, State) -> {next_state, NextStateName, NextState}|
-%%                             {next_state, NextStateName, 
+%%                             {next_state, NextStateName,
 %%                                NextState, Timeout} |
 %%                             {stop, Reason, NewState}
 %% Description:There should be one instance of this function for each possible
 %% state name. Whenever a gen_fsm receives an event sent using
 %% gen_fsm:send_event/2, the instance of this function with the same name as
-%% the current state name StateName is called to handle the event. It is also 
-%% called if a timeout occurs. 
+%% the current state name StateName is called to handle the event. It is also
+%% called if a timeout occurs.
 %%--------------------------------------------------------------------
 
 accept_sock(Pid, Sock) ->
@@ -105,10 +105,10 @@ continue(State) ->
 %%--------------------------------------------------------------------
 %% Function:
 %% state_name(Event, From, State) -> {next_state, NextStateName, NextState} |
-%%                                   {next_state, NextStateName, 
+%%                                   {next_state, NextStateName,
 %%                                     NextState, Timeout} |
 %%                                   {reply, Reply, NextStateName, NextState}|
-%%                                   {reply, Reply, NextStateName, 
+%%                                   {reply, Reply, NextStateName,
 %%                                    NextState, Timeout} |
 %%                                   {stop, Reason, NewState}|
 %%                                   {stop, Reason, Reply, NewState}
@@ -119,10 +119,10 @@ continue(State) ->
 %%--------------------------------------------------------------------
 
 %%--------------------------------------------------------------------
-%% Function: 
-%% handle_event(Event, StateName, State) -> {next_state, NextStateName, 
+%% Function:
+%% handle_event(Event, StateName, State) -> {next_state, NextStateName,
 %%						  NextState} |
-%%                                          {next_state, NextStateName, 
+%%                                          {next_state, NextStateName,
 %%					          NextState, Timeout} |
 %%                                          {stop, Reason, NewState}
 %% Description: Whenever a gen_fsm receives an event sent using
@@ -133,13 +133,13 @@ handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.
 
 %%--------------------------------------------------------------------
-%% Function: 
-%% handle_sync_event(Event, From, StateName, 
+%% Function:
+%% handle_sync_event(Event, From, StateName,
 %%                   State) -> {next_state, NextStateName, NextState} |
-%%                             {next_state, NextStateName, NextState, 
+%%                             {next_state, NextStateName, NextState,
 %%                              Timeout} |
 %%                             {reply, Reply, NextStateName, NextState}|
-%%                             {reply, Reply, NextStateName, NextState, 
+%%                             {reply, Reply, NextStateName, NextState,
 %%                              Timeout} |
 %%                             {stop, Reason, NewState} |
 %%                             {stop, Reason, Reply, NewState}
@@ -152,9 +152,9 @@ handle_sync_event(Event, _From, StateName, State) ->
     {noreply, StateName, State}.
 
 %%--------------------------------------------------------------------
-%% Function: 
+%% Function:
 %% handle_info(Info,StateName,State)-> {next_state, NextStateName, NextState}|
-%%                                     {next_state, NextStateName, NextState, 
+%%                                     {next_state, NextStateName, NextState,
 %%                                       Timeout} |
 %%                                     {stop, Reason, NewState}
 %% Description: This function is called by a gen_fsm when it receives any
