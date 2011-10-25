@@ -24,7 +24,10 @@
 -export([init/1, handle_event/3,
          handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
--record(state, {sock, cmdinfo=[]}).
+-record(state, {sock,
+                cmdinfo=[],
+                peername
+               }).
 
 %%====================================================================
 %% API
@@ -64,7 +67,12 @@ accept_sock(Pid, Sock) ->
     gen_fsm:send_event(Pid, {accept_sock, Sock}).
 
 wait_sock({accept_sock, Sock}, State = #state{sock=undefined}) ->
-    NewState = State#state{sock={sock, Sock}},
+    Host = case inet:peername(Sock) of
+               {ok, AddrPort} -> AddrPort;
+               _ -> undefined
+           end,
+    NewState = State#state{sock={sock, Sock},
+                           peername=Host},
     continue(NewState).
 
 connected({info, Command, Args}, State = #state{cmdinfo=I}) ->
@@ -214,3 +222,9 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
+
+peername(#state{peername={Host, Port}}) ->
+    string:join([inet_parse:ntoa(Host),
+                 integer_to_list(Port)], ":");
+peername(_) -> "unknown".
+
