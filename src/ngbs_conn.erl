@@ -67,12 +67,8 @@ accept_sock(Pid, Sock) ->
     gen_fsm:send_event(Pid, {accept_sock, Sock}).
 
 wait_sock({accept_sock, Sock}, State = #state{sock=undefined}) ->
-    Host = case inet:peername(Sock) of
-               {ok, AddrPort} -> AddrPort;
-               _ -> undefined
-           end,
     NewState = State#state{sock={sock, Sock},
-                           peername=Host},
+                           peername=get_peername(Sock)},
     continue(NewState).
 
 connected({info, Command, Args}, State = #state{cmdinfo=I}) ->
@@ -230,3 +226,8 @@ peername(#state{peername={Host, Port}}) ->
                  integer_to_list(Port)], ":");
 peername(_) -> "unknown".
 
+get_peername(S) ->
+    case inet:peername(S) of
+        {ok, AddrPort} -> AddrPort;
+        _ -> undefined
+    end.
