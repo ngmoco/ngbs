@@ -176,8 +176,8 @@ handle_info({tcp, Sock, TermBin}, StateName,
             ?MODULE:StateName(Term, State)
     catch
         error:badarg ->
-            ?WARN("Decode error: ~p:~p~nStack: ~p",
-                  [error, badarg, erlang:get_stacktrace()]),
+            ?WARN("[Peer ~s] Decode error: ~p:~p~nStack: ~p",
+                  [peername(State), error, badarg, erlang:get_stacktrace()]),
             sock_send(State,
                       ngbs_proto:error({protocol, data},
                                        "Couldn't decode bert packet due to atom creation or invalid types.",
@@ -185,8 +185,8 @@ handle_info({tcp, Sock, TermBin}, StateName,
                                        [])),
             {stop, decode_error, State};
         Type:Error ->
-            ?WARN("Decode error: ~p:~p~nStack: ~p",
-                  [Type, Error, erlang:get_stacktrace()]),
+            ?WARN("[Peer ~s] Decode error: ~p:~p~nStack: ~p",
+                  [peername(State), Type, Error, erlang:get_stacktrace()]),
             {stop, decode_error, State}
     end;
 handle_info({tcp_closed, Sock}, _StateName,
@@ -194,11 +194,13 @@ handle_info({tcp_closed, Sock}, _StateName,
     {stop, normal, State#state{sock=undefined}};
 handle_info({tcp_error, Sock, Reason}, _StateName,
             State = #state{sock={sock, Sock}}) ->
-    ?INFO("Client connection closed -- ~p", [Reason]),
+    ?INFO("[Peer ~s] Client connection closed -- ~p",
+          [peername(State), Reason]),
     {stop, normal, close(State)};
 
 handle_info(Info, StateName, State) ->
-    ?INFO("Unexpected info msg ~p in state ~p.", [Info, StateName]),
+    ?INFO("[Peer ~s] Unexpected info msg ~p in state ~p.",
+          [peername(State), Info, StateName]),
     {next_state, StateName, State}.
 
 %%--------------------------------------------------------------------
