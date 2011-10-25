@@ -214,6 +214,18 @@ terminate(_Reason, _StateName, _State) ->
 %% code_change(OldVsn, StateName, State, Extra) -> {ok, StateName, NewState}
 %% Description: Convert process state when code is changed
 %%--------------------------------------------------------------------
+code_change(_OldVsn, StateName, {state, Sock, CmdInfo}, _Extra) ->
+    case Sock of
+        {sock, S} ->
+            {ok, StateName,
+             #state{sock=Sock,
+                    cmdinfo=CmdInfo,
+                    peername=get_peername(S)}};
+        _ ->
+            {ok, StateName,
+             #state{sock=Sock,
+                    cmdinfo=CmdInfo}}
+    end;
 code_change(_OldVsn, StateName, State, _Extra) ->
     {ok, StateName, State}.
 
