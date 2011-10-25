@@ -29,7 +29,8 @@
 -define(ACL_TAB, ?MODULE).
 
 -type callspec() :: {module, Mod::atom()} |
-                    {function, {Mod::atom(), Function::atom(), Arity::non_neg_integer()}}.
+                    {function, {Mod::atom(), Function::atom(),
+                                Arity::non_neg_integer()}}.
 
 %%====================================================================
 %% API
@@ -54,7 +55,8 @@ deny_call(CS) ->
     gen_server:call(?MODULE, {deny_call, CS}).
 
 allowed_call({module, M}) when is_atom(M) -> allowed;
-allowed_call({function, {M, F, A}}) when is_atom(M), is_atom(F), is_integer(A) -> allowed;
+allowed_call({function, {M, F, A}})
+  when is_atom(M), is_atom(F), is_integer(A) -> allowed;
 allowed_call(_) -> not_allowed.
 
 missing_calls() ->
@@ -69,13 +71,15 @@ missing_calls() ->
 
 %% @doc Check whether an MFA is allowed. (Ets lookup for a blanket
 %% module-allow, then for a specific MFA allow, otherwise not_allowed.
--spec is_allowed(atom(), atom(), non_neg_integer()) -> 'allowed' | 'not_allowed'.
+-spec is_allowed(atom(), atom(), non_neg_integer()) -> 'allowed' |
+                                                       'not_allowed'.
 is_allowed(Module, Function, Arity)
   when is_atom(Module), is_atom(Function), is_integer(Arity) ->
     case ets:lookup(?ACL_TAB, ets_key({module, Module})) of
         [_] -> allowed;
         [] ->
-            case ets:lookup(?ACL_TAB, ets_key({function, {Module, Function, Arity}})) of
+            case ets:lookup(?ACL_TAB, ets_key({function,
+                                               {Module, Function, Arity}})) of
                 [_] -> allowed;
                 [] ->
                     not_allowed
@@ -112,7 +116,7 @@ init([]) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @spec 
+%% @spec
 %% handle_call(Request, From, State) -> {reply, Reply, State} |
 %%                                      {reply, Reply, State, Timeout} |
 %%                                      {noreply, State} |
@@ -134,14 +138,14 @@ handle_call({allow_call, CS}, _From, State) ->
         not_allowed ->
             {reply, {error, not_allowed}, State}
     end;
-        
+
 handle_call(Call, _From, State) ->
     ?WARN("Unexpected call ~p.", [Call]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
-%% @spec 
+%% @spec
 %% handle_cast(Msg, State) -> {noreply, State} |
 %%                            {noreply, State, Timeout} |
 %%                            {stop, Reason, State}
@@ -154,7 +158,7 @@ handle_cast(Msg, State) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @spec 
+%% @spec
 %% handle_info(Info, State) -> {noreply, State} |
 %%                             {noreply, State, Timeout} |
 %%                             {stop, Reason, State}
@@ -198,7 +202,8 @@ ensure_loaded({function, {M,F,A}}) when is_atom(M), is_atom(F), is_integer(A) ->
         loaded ->
             case erlang:function_exported(M, F, A) of
                 false ->
-                    ?WARN("Module ~p loaded, but function ~p/~p not exported.", [M, F, A]),
+                    ?WARN("Module ~p loaded, but function ~p/~p not exported.",
+                          [M, F, A]),
                     not_loaded;
                 true -> loaded
             end
